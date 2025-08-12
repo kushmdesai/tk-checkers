@@ -33,6 +33,7 @@ class CheckersApp:
         self.selected_piece = None
         self.pieces = {}
         self.turn = "red"
+        self.multi_jump_piece = None
 
         self.draw_board()
         self.place_pieces()
@@ -128,6 +129,13 @@ class CheckersApp:
         row = event.y // SQUARE_SIZE
         print(f"Clicked row: {row}, col: {col}")
 
+        if self.multi_jump_piece:
+            from_pos = self.multi_jump_piece
+
+            if not (self.is_valid_move(from_pos, (row, col)) and abs(row - from_pos[0]) == 2):
+                print("Must continue jumping with the same piece (capture)")
+                return
+
         # Corrected: Accessing the color from the dictionary
         if (row, col) in self.pieces and self.pieces[(row, col)]["color"] != self.turn:
             print(f"It's {self.turn}'s turn, you can't move {self.pieces[(row, col)]['color']}'s piece.")
@@ -135,22 +143,29 @@ class CheckersApp:
 
         if self.selected_piece:
             if self.selected_piece == (row, col):
-                self.selected_piece = None
-                self.redraw()
+                if not self.multi_jump_piece:
+                    self.selected_piece = None
+                    self.redraw()
+                else:
+                    print("You must continue umping with this piece")
+                    return
             elif self.is_valid_move(self.selected_piece, (row, col)):
                 self.move_piece(self.selected_piece, (row, col))
-                self.selected_piece = None
-                self.turn = "black" if self.turn == "red" else "red"
                 self.redraw()
                 self.display_turn_text()
                 self.update_piece_counts() # Corrected typo
                 self.check_for_winner()
             else:
-                print("Invalid move. Deselecting piece.")
-                self.selected_piece = None
-                self.redraw()
+                print("Invalid move.")
+
+                if not self.multi_jump_piece:
+                    self.selected_piece = None
+                    self.redraw()
         else:
-            if (row, col) in self.pieces:
+            if (row, col) in self.pieces and self.pieces[row,col]["color"] == self.turn:
+                if self.multi_jump_piece and (row, col) != self.multi_jump_piece:
+                    print("Must continue jumping with same piece")
+                    return
                 self.selected_piece = (row, col)
                 # Corrected: Redraw everything to show the highlight, no need for highlight_selected_piece()
                 self.redraw() 
@@ -163,7 +178,7 @@ class CheckersApp:
         to_row, to_col = to_pos
 
         row_diff = abs(to_row - from_row)
-
+        captured = False
         if row_diff == 2:
             captured_row = (from_row + to_row) // 2
             captured_col = (from_col + to_col) // 2
@@ -172,9 +187,19 @@ class CheckersApp:
             if captured_pos in self.pieces:
                 del self.pieces[captured_pos]
                 print(f"Captured piece at {captured_pos}")
+                captured = True
         
         self.pieces[to_pos] = self.pieces.pop(from_pos)
         self.check_for_king(to_pos) # Check for king after move
+
+        if captured and self.can_capture(to_pos):
+            print("Multi-Jump available, must continue with same piece.")
+            self.selected_piece = to_pos
+            self.multi_jump_piece = to_pos
+        else:
+            self.selected_piece = None
+            self.multi_jump_piece = None
+            self.turn = "black" if self.turn == "red" else "red"
 
     def redraw(self):
         self.canvas.delete("all")
@@ -261,7 +286,41 @@ class CheckersApp:
             if not piece["is_king"]:
                 piece["is_king"] = True
                 print("Black piece is now king")
-            
+    def can_capture(self, pos):
+        if pos not in self.pieces:
+            return False
+        
+        row, col = pos
+        piece = self.pieces[pos]
+        color = piece["color"]
+        opponent_color = "black" if color == "red" else "red"
+        is_king = piece["is_king"]
+
+        directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+        for dr, dc in directions:
+            if not is_king:
+                if color == "red" and dr != -1:
+                    continue
+                if color == "black" and dr != 1:
+                    continue
+            mid_row = row + dr
+            mid_col = col + dc
+            jump_row = row + 2 * dr
+            jump_col = col + 2 * dc
+
+            if (0 <= mid_row < BOARD_SIZE and 0 <= mid_col < BOARD_SIZE and
+                0 <= jump_row < BOARD_SIZE and 0 <= jump_col < BOARD_SIZE):
+                
+                mid_pos = (mid_row, mid_col)
+                jump_pos = (jump_row, jump_col)
+
+                if (mid_pos in self.pieces and
+                    self.pieces[mid_pos]["color"] == opponent_color and
+                    jump_pos not in self.pieces):
+                    return True
+        return False
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = CheckersApp(root)

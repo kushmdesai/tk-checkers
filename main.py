@@ -85,7 +85,7 @@ class CheckersApp:
                 fill="gold", outline="black", width=1, tags="pieces"
             )
 
-    def is_valid_move(self, from_pos, to_pos):
+    def is_valid_move(self, from_pos, to_pos, forced_capture_required=False):
         if to_pos in self.pieces:
             return False
         
@@ -100,12 +100,15 @@ class CheckersApp:
         row_diff = to_row - from_row
         col_diff = abs(to_col - from_col)
 
+        if forced_capture_required and abs(row_diff) != 2:
+            return False
+
         # Normal move and capture logic for non-king pieces
         # Corrected: Combined the logic to be more concise
         if not is_king:
-            if piece_color == "red" and row_diff == -1 and col_diff == 1:
+            if piece_color == "red" and row_diff == -1 and col_diff == 1 and not forced_capture_required:
                 return True
-            elif piece_color == "black" and row_diff == 1 and col_diff == 1:
+            elif piece_color == "black" and row_diff == 1 and col_diff == 1 and not forced_capture_required:
                 return True
         
         # Logic for king moves (can move forward or backward)
@@ -142,7 +145,9 @@ class CheckersApp:
                 if (row, col) not in forced_capture_pieces:
                     print("You mus select a piece that can capture")
                     return
-
+        
+        forced_capture_pieces =  self.has_forced_capture(self.turn)
+        forced_capture_required = len(forced_capture_pieces) > 0
         if self.selected_piece:
             if self.selected_piece == (row, col):
                 if not getattr(self, "multi_jump_piece", None):
@@ -151,7 +156,7 @@ class CheckersApp:
                 else:
                     print("You must continue umping with this piece")
                     return
-            elif self.is_valid_move(self.selected_piece, (row, col)):
+            elif self.is_valid_move(self.selected_piece, (row, col), forced_capture_required):
                 self.move_piece(self.selected_piece, (row, col))
                 self.redraw()
                 self.display_turn_text()
@@ -241,6 +246,37 @@ class CheckersApp:
         elif black_pieces == 0:
             self.display_win_screen("red")
 
+        red_moves = self.has_any_valid_moves("red")
+        black_moves = self.has_any_valid_moves("black")
+
+        if not red_moves and black_moves:
+            self.display_draw_screen()
+            return
+        elif not black_moves and red_moves:
+            self.display_draw_screen()
+            return
+        elif not red_moves and not black_moves:
+            self.display_draw_screen()
+            return
+    
+    def has_any_valid_moves(self, color):
+        
+        for from_pos, piece_data in self.pieces.items():
+            if piece_data["color"] != color:
+                continue
+            
+            for dr in [-1,1]:
+                for dc in [-1,1]:
+                    for step in [1,2]:
+                        to_row = from_pos[0] + dr * step
+                        to_col = from_pos[1] + dc * step
+                        to_pos = (to_row, to_col)
+
+                        if 0 <= to_row < BOARD_SIZE and 0 <= to_col < BOARD_SIZE:
+                            forced_capture_required = len(self.has_forced_capture(color)) > 0
+                            if self.is_valid_move(from_pos, to_pos, forced_capture_required):
+                                return True
+        return False
     def display_win_screen(self, winner):
         self.canvas.delete("all")
         winner_color = winner.capitalize()
@@ -269,6 +305,10 @@ class CheckersApp:
     
     def reset_game(self):
         self.win_screen_canvas.destroy()
+        self.__init__(self.root)
+
+    def reset_game_draw(self):
+        self.draw_screen_canvas.destroy()
         self.__init__(self.root)
 
     def check_for_king(self, to_pos):
@@ -323,12 +363,52 @@ class CheckersApp:
                     return True
         return False
     def has_forced_capture(self, color):
-        capturing_pieces = []
+        forced_pieces = []
         for pos, piece_dadta in self.pieces.items():
-            if piece_dadta["color"] == color:
+            if piece_dadta["color"] == color and self.can_capture(pos):
                 if self.can_capture(pos):
-                    capturing_pieces.append(pos)
-        return capturing_pieces
+                    forced_pieces.append(pos)
+        return forced_pieces
+
+    def display_draw_screen(self):
+        self.canvas.delete("all")
+        self.main_frame.destroy()
+
+        self.draw_screen_canvas = tk.Canvas(self.root, width=BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20,
+                                            height=BOARD_SIZE * SQUARE_SIZE + 20, bg="lightgray")
+        self.draw_screen_canvas.pack(fill=tk.BOTH, expand=True)
+
+        self.draw_screen_canvas.create_text(
+            (BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20) / 2,
+            (BOARD_SIZE * SQUARE_SIZE + 20) / 2,
+            text="Draw!",
+            font=("Arial", 48, "bold"),
+            fill="gray",
+            tags="draw_screen"
+        )
+
+        play_again_button = tk.Button(self.draw_screen_canvas, text="Play Again", font=("Arial", 20), command=self.reset_game_draw)
+        self.draw_screen_canvas.create_window(
+            (BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20) /2,
+            (BOARD_SIZE * SQUARE_SIZE + 20)  / 2 + 80,
+            window=play_again_button
+        )
+        # Testing
+    def setup_draw_scenario(self):
+        # Clear all pieces
+        self.pieces.clear()
+        # Place a few pieces for both players stuck blocking each other
+        # Example blocking layout:
+        # Black pieces at (2,1), (2,3)
+        # Red pieces at (3,0), (3,2)
+        self.pieces[(1,0)] = {"color": "black", "is_king": False}
+        self.pieces[(3,0)] = {"color": "red", "is_king": False}
+        self.pieces[(3,2)] = {"color": "red", "is_king": False}
+        self.pieces[(5,2)] = {"color": "red", "is_king" : False}
+
+        self.turn = "red"
+        self.redraw()
+        print("Set up draw test scenario")
 
 if __name__ == "__main__":
     root = tk.Tk()

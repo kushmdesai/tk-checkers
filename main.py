@@ -30,6 +30,12 @@ class CheckersApp:
         self.black_pieces_label = tk.Label(self.sidebar_frame, text="Black Pieces", font=("Arial", 14), bg="lightgray")
         self.black_pieces_label.pack(pady=5)
 
+        self.message_label =  tk.Label(self.sidebar_frame, text="", font=("Arial", 12), bg="lightgray", fg="red", wraplength=SIDEBAR_WIDTH-20)
+        self.message_label.pack(pady=(10, 20))
+
+        self.reset_button = tk.Button(self.sidebar_frame, text="End Game", font=("Arial", 14, "bold"), command=self.display_draw_screen)
+        self.reset_button.pack(pady=(10, 20))
+
         self.selected_piece = None
         self.pieces = {}
         self.turn = "red"
@@ -132,29 +138,34 @@ class CheckersApp:
         row = event.y // SQUARE_SIZE
         print(f"Clicked row: {row}, col: {col}")
 
-        if hasattr(self, "multi_jump_piece") and self.multi_jump_piece:
+        if self.multi_jump_piece:
             from_pos = self.multi_jump_piece
             if not (self.is_valid_move(from_pos, (row, col)) and abs(row - from_pos[0]) == 2):
-                print("Must continue jumping with same piece")
+                self.show_message("You must continue jumping with the same piece")
                 return
+            else:
+                self.clear_message()
         # Corrected: Accessing the color from the dictionary
 
-        if not self.selected_piece and not getattr(self, "multi_jump_piece", None):
+        if not self.selected_piece and not self.multi_jump_piece:
             forced_capture_pieces = self.has_forced_capture(self.turn)
-            if forced_capture_pieces:
-                if (row, col) not in forced_capture_pieces:
-                    print("You mus select a piece that can capture")
-                    return
+            if forced_capture_pieces and (row, col) not in  forced_capture_pieces:
+                self.show_message("You must select a piece that can capture")
+                return
+            else:
+                self.clear_message()
         
         forced_capture_pieces =  self.has_forced_capture(self.turn)
         forced_capture_required = len(forced_capture_pieces) > 0
+
         if self.selected_piece:
             if self.selected_piece == (row, col):
-                if not getattr(self, "multi_jump_piece", None):
+                if not self.multi_jump_piece:
                     self.selected_piece = None
                     self.redraw()
+                    self.clear_message()
                 else:
-                    print("You must continue umping with this piece")
+                    self.show_message("You must continue jumping with this piece")
                     return
             elif self.is_valid_move(self.selected_piece, (row, col), forced_capture_required):
                 self.move_piece(self.selected_piece, (row, col))
@@ -162,22 +173,23 @@ class CheckersApp:
                 self.display_turn_text()
                 self.update_piece_counts() # Corrected typo
                 self.check_for_winner()
+                self.clear_message()
             else:
-                print("Invalid move.")
-
+                self.show_message("Invalid move.")
                 if not self.multi_jump_piece:
                     self.selected_piece = None
                     self.redraw()
         else:
             if (row, col) in self.pieces and self.pieces[row,col]["color"] == self.turn:
                 if self.multi_jump_piece and (row, col) != self.multi_jump_piece:
-                    print("Must continue jumping with same piece")
+                    self.show_message("Must continue jumping with same piece")
                     return
                 self.selected_piece = (row, col)
                 # Corrected: Redraw everything to show the highlight, no need for highlight_selected_piece()
                 self.redraw() 
+                self.clear_message()
             else:
-                print("Clicked empty square, no piece selected.")
+                self.show_message("Clicked empty square, no piece selected.")
     
     def move_piece(self, from_pos, to_pos):
         print(f"Moving piece from {from_pos} to {to_pos}")
@@ -223,6 +235,13 @@ class CheckersApp:
             y2 = y1 + SQUARE_SIZE
             self.canvas.create_rectangle(x1, y1, x2, y2, outline="yellow", width=4, tags="highlight")
             self.canvas.tag_raise("pieces")
+
+            valid_moves = self.get_valid_moves(self.selected_piece)
+            for move_row, move_col in valid_moves:
+                cx = move_col * SQUARE_SIZE + SQUARE_SIZE // 2
+                cy = move_row * SQUARE_SIZE + SQUARE_SIZE // 2
+                radius = 10
+                self.canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill="yellow", outline="", tags="move_highlight")
 
         self.display_turn_text()
         self.update_piece_counts()
@@ -393,7 +412,25 @@ class CheckersApp:
             (BOARD_SIZE * SQUARE_SIZE + 20)  / 2 + 80,
             window=play_again_button
         )
-        # Testing
+
+    def show_message(self, text):
+        self.message_label.config(text=text)
+
+    def clear_message(self):
+        self.message_label.config(text="")
+
+    def get_valid_moves(self, from_pos):
+        forced_capture_pieces = self.has_forced_capture(self.turn)
+        forced_capture_required = len(forced_capture_pieces) > 0
+        moves = []
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                to_pos = (row, col)
+                if self.is_valid_move(from_pos, to_pos, forced_capture_required):
+                    moves.append(to_pos)
+        return moves
+
+    # Testing
     def setup_draw_scenario(self):
         # Clear all pieces
         self.pieces.clear()

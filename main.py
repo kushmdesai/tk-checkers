@@ -1,4 +1,6 @@
 import tkinter as tk
+import webbrowser
+from tkinter import messagebox
 
 BOARD_SIZE = 8
 SQUARE_SIZE = 60
@@ -35,6 +37,12 @@ class CheckersApp:
 
         self.reset_button = tk.Button(self.sidebar_frame, text="End Game", font=("Arial", 14, "bold"), command=self.display_draw_screen)
         self.reset_button.pack(pady=(10, 20))
+
+        self.rules_button = tk.Button(
+            self.sidebar_frame, text="Checkers Rules", font=("Arial", 14, "bold"),
+            command=self.show_rules_popup
+        )
+        self.rules_button.pack(pady=(10,20))
 
         self.selected_piece = None
         self.pieces = {}
@@ -429,6 +437,27 @@ class CheckersApp:
                 if self.is_valid_move(from_pos, to_pos, forced_capture_required):
                     moves.append(to_pos)
         return moves
+
+    def show_rules_popup(self):
+        popup = tk.Toplevel(self.root)
+        popup.title("Checkers Rules")
+
+        label = tk.Label(
+            popup,
+            text="Don't know the rules for checkers?\n Learn the official Checkers rules by visiting\n\n"
+                 "https://officialgamerules.org/game-rules/checkers/",
+            font=("Arial", 12), justify="center", padx=20, pady=20
+        )
+        label.pack()
+
+        def open_link():
+            webbrowser.open("https://officialgamerules.org/game-rules/checkers/")
+            
+        open_link_button = tk.Button(popup, text="Open Rules Website", command=open_link)
+        open_link_button.pack(pady=(0,20))
+                              
+        close_button = tk.Button(popup, text="Close", command=popup.destroy, fg="red")
+        close_button.pack(pady=(0, 20))
 
     # Testing
     def setup_draw_scenario(self):

@@ -8,6 +8,8 @@ class CheckersApp:
     def __init__(self, root):
         # turn_text = root.render(f"Turn: {self.turn}", True, (255,255,255))
         # screen.blit(turn_text, (10, 10))
+        # turn_text = root.render(f"Turn: {self.turn}", True, (255,255,255))
+        # screen.blit(turn_text, (10, 10))
         self.root = root
         self.root.title("Checkers Game")
 
@@ -75,6 +77,7 @@ class CheckersApp:
         radius = SQUARE_SIZE // 2 - 8
         self.canvas.create_oval(
             x - radius, y - radius, x + radius, y + radius,
+            fill=color, outline="black", width=2, tags="pieces"
             fill=color, outline="black", width=2, tags="pieces"
         )
 

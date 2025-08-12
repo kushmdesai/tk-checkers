@@ -129,21 +129,23 @@ class CheckersApp:
         row = event.y // SQUARE_SIZE
         print(f"Clicked row: {row}, col: {col}")
 
-        if self.multi_jump_piece:
+        if hasattr(self, "multi_jump_piece") and self.multi_jump_piece:
             from_pos = self.multi_jump_piece
-
             if not (self.is_valid_move(from_pos, (row, col)) and abs(row - from_pos[0]) == 2):
-                print("Must continue jumping with the same piece (capture)")
+                print("Must continue jumping with same piece")
                 return
-
         # Corrected: Accessing the color from the dictionary
-        if (row, col) in self.pieces and self.pieces[(row, col)]["color"] != self.turn:
-            print(f"It's {self.turn}'s turn, you can't move {self.pieces[(row, col)]['color']}'s piece.")
-            return
+
+        if not self.selected_piece and not getattr(self, "multi_jump_piece", None):
+            forced_capture_pieces = self.has_forced_capture(self.turn)
+            if forced_capture_pieces:
+                if (row, col) not in forced_capture_pieces:
+                    print("You mus select a piece that can capture")
+                    return
 
         if self.selected_piece:
             if self.selected_piece == (row, col):
-                if not self.multi_jump_piece:
+                if not getattr(self, "multi_jump_piece", None):
                     self.selected_piece = None
                     self.redraw()
                 else:
@@ -320,6 +322,13 @@ class CheckersApp:
                     jump_pos not in self.pieces):
                     return True
         return False
+    def has_forced_capture(self, color):
+        capturing_pieces = []
+        for pos, piece_dadta in self.pieces.items():
+            if piece_dadta["color"] == color:
+                if self.can_capture(pos):
+                    capturing_pieces.append(pos)
+        return capturing_pieces
 
 if __name__ == "__main__":
     root = tk.Tk()

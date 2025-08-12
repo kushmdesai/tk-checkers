@@ -6,10 +6,6 @@ SIDEBAR_WIDTH = 200
 
 class CheckersApp:
     def __init__(self, root):
-        # turn_text = root.render(f"Turn: {self.turn}", True, (255,255,255))
-        # screen.blit(turn_text, (10, 10))
-        # turn_text = root.render(f"Turn: {self.turn}", True, (255,255,255))
-        # screen.blit(turn_text, (10, 10))
         self.root = root
         self.root.title("Checkers Game")
 
@@ -43,6 +39,7 @@ class CheckersApp:
         print("Initial pieces:", self.pieces.keys())
         self.canvas.bind("<Button-1>", self.onclick)
         self.display_turn_text()
+        self.update_piece_counts()
 
     def draw_board(self):
         self.canvas.delete("board_squares")
@@ -58,13 +55,13 @@ class CheckersApp:
     def place_pieces(self):
         for row in range(3):
             for col in range(BOARD_SIZE):
-                if  (row + col) % 2 == 1:
+                if (row + col) % 2 == 1:
                     self.pieces[(row, col)] = {"color": "black", "is_king": False}
 
-        for row in range(5,8):
+        for row in range(5, 8):
             for col in range(BOARD_SIZE):
                 if (row + col) % 2 == 1:
-                    self.pieces[(row, col)] = {"color":"red", "is_king": False}
+                    self.pieces[(row, col)] = {"color": "red", "is_king": False}
 
         self.redraw()
 
@@ -78,17 +75,15 @@ class CheckersApp:
         self.canvas.create_oval(
             x - radius, y - radius, x + radius, y + radius,
             fill=color, outline="black", width=2, tags="pieces"
-            fill=color, outline="black", width=2, tags="pieces"
         )
 
         if is_king:
-            radius = SQUARE_SIZE // 2-20
-            x = col * SQUARE_SIZE + SQUARE_SIZE // 2
-            y = row * SQUARE_SIZE + SQUARE_SIZE // 2
+            radius = SQUARE_SIZE // 2 - 20
             self.canvas.create_oval(
-                x - radius, y-radius, x + radius, y + radius,
+                x - radius, y - radius, x + radius, y + radius,
                 fill="gold", outline="black", width=1, tags="pieces"
             )
+
     def is_valid_move(self, from_pos, to_pos):
         if to_pos in self.pieces:
             return False
@@ -104,16 +99,20 @@ class CheckersApp:
         row_diff = to_row - from_row
         col_diff = abs(to_col - from_col)
 
+        # Normal move and capture logic for non-king pieces
+        # Corrected: Combined the logic to be more concise
         if not is_king:
-            if piece_color == "red" and to_row == from_row - 1 and abs(to_col - from_col) == 1:
+            if piece_color == "red" and row_diff == -1 and col_diff == 1:
                 return True
-            elif piece_color == "black" and to_row == from_row + 1 and abs(to_col - from_col) == 1:
-                return True
-        
-        if is_king:
-            if col_diff == 1 and abs(row_diff) == 1:
+            elif piece_color == "black" and row_diff == 1 and col_diff == 1:
                 return True
         
+        # Logic for king moves (can move forward or backward)
+        # Corrected: Kings can make any diagonal single move
+        if is_king and abs(row_diff) == 1 and col_diff == 1:
+            return True
+            
+        # Capture move logic (applies to both normal and king pieces)
         if abs(row_diff) == 2 and col_diff == 2:
             jump_row = (from_row + to_row) // 2
             jump_col = (from_col + to_col) // 2
@@ -129,8 +128,9 @@ class CheckersApp:
         row = event.y // SQUARE_SIZE
         print(f"Clicked row: {row}, col: {col}")
 
-        if (row, col) in self.pieces and self.pieces[(row,col)]["color"] != self.turn:
-            print(f"It's {self.turn}'s turn, you can't move {self.pieces[(row, col)]}'s piece.") # <-- Added a more descriptive message
+        # Corrected: Accessing the color from the dictionary
+        if (row, col) in self.pieces and self.pieces[(row, col)]["color"] != self.turn:
+            print(f"It's {self.turn}'s turn, you can't move {self.pieces[(row, col)]['color']}'s piece.")
             return
 
         if self.selected_piece:
@@ -139,26 +139,26 @@ class CheckersApp:
                 self.redraw()
             elif self.is_valid_move(self.selected_piece, (row, col)):
                 self.move_piece(self.selected_piece, (row, col))
-                self.check_for_king(to_pos=(row, col))
                 self.selected_piece = None
                 self.turn = "black" if self.turn == "red" else "red"
                 self.redraw()
                 self.display_turn_text()
-                self.updtade_piece_counts()
+                self.update_piece_counts() # Corrected typo
                 self.check_for_winner()
             else:
-                print("Invalid move. Deslecting piece")
+                print("Invalid move. Deselecting piece.")
                 self.selected_piece = None
                 self.redraw()
         else:
             if (row, col) in self.pieces:
                 self.selected_piece = (row, col)
-                self.highlight_selected_piece()
+                # Corrected: Redraw everything to show the highlight, no need for highlight_selected_piece()
+                self.redraw() 
             else:
-                print("Clicked empty square, no piece selected")
+                print("Clicked empty square, no piece selected.")
     
     def move_piece(self, from_pos, to_pos):
-        print(f"Moving pieace from {from_pos} to {to_pos}")
+        print(f"Moving piece from {from_pos} to {to_pos}")
         from_row, from_col = from_pos
         to_row, to_col = to_pos
 
@@ -172,9 +172,17 @@ class CheckersApp:
             if captured_pos in self.pieces:
                 del self.pieces[captured_pos]
                 print(f"Captured piece at {captured_pos}")
+        
         self.pieces[to_pos] = self.pieces.pop(from_pos)
+        self.check_for_king(to_pos) # Check for king after move
 
-    def highlight_selected_piece(self):
+    def redraw(self):
+        self.canvas.delete("all")
+        self.draw_board()
+        # Corrected: Iterating and passing the full piece_data dictionary
+        for (row, col), piece_data in self.pieces.items():
+            self.draw_piece(row, col, piece_data)
+            
         if self.selected_piece:
             row, col = self.selected_piece
             x1 = col * SQUARE_SIZE
@@ -184,20 +192,22 @@ class CheckersApp:
             self.canvas.create_rectangle(x1, y1, x2, y2, outline="yellow", width=4, tags="highlight")
             self.canvas.tag_raise("pieces")
 
-    def redraw(self):
-        self.canvas.delete("all")
-        self.draw_board()
-        for (row, col), piece_data in self.pieces.items():
-            self.draw_piece(row, col, piece_data)
-        self.highlight_selected_piece()
         self.display_turn_text()
+        self.update_piece_counts()
 
     def display_turn_text(self):
         self.turn_label.config(text=f"Turn: {self.turn.capitalize()}")
 
+    def update_piece_counts(self):
+        # Corrected: Summing up based on the color key in the piece dictionaries
+        red_count = sum(1 for piece in self.pieces.values() if piece["color"] == "red")
+        black_count = sum(1 for piece in self.pieces.values() if piece["color"] == "black")
+        self.red_pieces_label.config(text=f"Red Pieces: {red_count}")
+        self.black_pieces_label.config(text=f"Black Pieces: {black_count}")
+
     def check_for_winner(self):
-        red_pieces = sum(1 for color in self.pieces.values() if color == "red")
-        black_pieces = sum(1 for color in self.pieces.values() if color == "black")
+        red_pieces = sum(1 for piece in self.pieces.values() if piece["color"] == "red")
+        black_pieces = sum(1 for piece in self.pieces.values() if piece["color"] == "black")
 
         if red_pieces == 0:
             self.display_win_screen("black")
@@ -215,7 +225,7 @@ class CheckersApp:
         self.win_screen_canvas.pack(fill=tk.BOTH, expand=True)
 
         self.win_screen_canvas.create_text(
-            (BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20)/ 2,
+            (BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20) / 2,
             (BOARD_SIZE * SQUARE_SIZE + 20) / 2,
             text=text,
             font=("Arial", 48, "bold"),
@@ -226,35 +236,32 @@ class CheckersApp:
         play_again_button = tk.Button(self.win_screen_canvas, text="Play Again", font=("Arial", 20), command=self.reset_game)
         self.win_screen_canvas.create_window(
             (BOARD_SIZE * SQUARE_SIZE + SIDEBAR_WIDTH + 20) / 2,
-            (BOARD_SIZE * SQUARE_SIZE + 20) /2 + 80,
+            (BOARD_SIZE * SQUARE_SIZE + 20) / 2 + 80,
             window=play_again_button
         )
+    
     def reset_game(self):
-
         self.win_screen_canvas.destroy()
-
         self.__init__(self.root)
-
-    def updtade_piece_counts(self):
-        red_count = sum(1 for color in self.pieces.values() if color == "red")
-        black_count = sum(1 for color in self.pieces.values() if color == "black")
-        self.red_pieces_label.config(text=f"Red Pieces: {red_count}")
-        self.black_pieces_label.config(text=f"Black Pieces: {black_count}")
 
     def check_for_king(self, to_pos):
         row, col = to_pos
+        # Check if the piece still exists at to_pos after a potential capture in a multi-jump
+        if to_pos not in self.pieces:
+            return
+
         piece = self.pieces[to_pos]
 
         if piece["color"] == "red" and row == 0:
             if not piece["is_king"]:
                 piece["is_king"] = True
                 print("Red piece is now king")
-
+        
         if piece["color"] == "black" and row == BOARD_SIZE - 1:
             if not piece["is_king"]:
                 piece["is_king"] = True
                 print("Black piece is now king")
-        
+            
 if __name__ == "__main__":
     root = tk.Tk()
     app = CheckersApp(root)

@@ -51,7 +51,6 @@ class CheckersApp:
 
         self.draw_board()
         self.place_pieces()
-        print("Initial pieces:", self.pieces.keys())
         self.canvas.bind("<Button-1>", self.onclick)
         self.display_turn_text()
         self.update_piece_counts()
@@ -144,7 +143,6 @@ class CheckersApp:
     def onclick(self, event):
         col = event.x // SQUARE_SIZE
         row = event.y // SQUARE_SIZE
-        print(f"Clicked row: {row}, col: {col}")
 
         if self.multi_jump_piece:
             from_pos = self.multi_jump_piece
@@ -200,7 +198,6 @@ class CheckersApp:
                 self.show_message("Clicked empty square, no piece selected.")
     
     def move_piece(self, from_pos, to_pos):
-        print(f"Moving piece from {from_pos} to {to_pos}")
         from_row, from_col = from_pos
         to_row, to_col = to_pos
 
@@ -213,14 +210,12 @@ class CheckersApp:
 
             if captured_pos in self.pieces:
                 del self.pieces[captured_pos]
-                print(f"Captured piece at {captured_pos}")
                 captured = True
         
         self.pieces[to_pos] = self.pieces.pop(from_pos)
         self.check_for_king(to_pos) # Check for king after move
 
         if captured and self.can_capture(to_pos):
-            print("Multi-Jump available, must continue with same piece.")
             self.selected_piece = to_pos
             self.multi_jump_piece = to_pos
         else:
@@ -349,12 +344,10 @@ class CheckersApp:
         if piece["color"] == "red" and row == 0:
             if not piece["is_king"]:
                 piece["is_king"] = True
-                print("Red piece is now king")
         
         if piece["color"] == "black" and row == BOARD_SIZE - 1:
             if not piece["is_king"]:
                 piece["is_king"] = True
-                print("Black piece is now king")
     def can_capture(self, pos):
         if pos not in self.pieces:
             return False
@@ -474,7 +467,6 @@ class CheckersApp:
 
         self.turn = "red"
         self.redraw()
-        print("Set up draw test scenario")
 
 if __name__ == "__main__":
     root = tk.Tk()
